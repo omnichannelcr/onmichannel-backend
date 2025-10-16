@@ -1,0 +1,55 @@
+service: omnichannel-outbound-service
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  
+  environment:
+    STAGE: ${self:provider.stage}
+    AURORA_CLUSTER_ARN: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+    MESSAGE_QUEUE_URL: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueUrl}
+    
+    # Platform API Tokens
+    WHATSAPP_ACCESS_TOKEN: ${env:WHATSAPP_ACCESS_TOKEN}
+    FACEBOOK_ACCESS_TOKEN: ${env:FACEBOOK_ACCESS_TOKEN}
+    INSTAGRAM_ACCESS_TOKEN: ${env:INSTAGRAM_ACCESS_TOKEN}
+    TELEGRAM_BOT_TOKEN: ${env:TELEGRAM_BOT_TOKEN}
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - rds-data:ExecuteStatement
+          Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+          Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueArn}
+
+functions:
+  outboundHandler:
+    handler: handler.outboundHandler
+    timeout: 30
+    events:
+      - http:
+          path: /send-message
+          method: post
+          cors: true
+      - http:
+          path: /send-message/{platform}
+          method: post
+          cors: true
+          request:
+            parameters:
+              paths:
+                platform: true
+
+plugins:
+  - serverless-webpack
+
+webpack:
+  webpackConfig: 'webpack.config.js'
+  includeModules: true

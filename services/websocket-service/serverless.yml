@@ -1,0 +1,55 @@
+service: omnichannel-websocket-service
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  
+  environment:
+    STAGE: ${self:provider.stage}
+    AURORA_CLUSTER_ARN: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+    AURORA_SECRET_ARN: ${env:AURORA_SECRET_ARN}
+    AURORA_DATABASE: omnichannel
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - rds-data:ExecuteStatement
+            - rds-data:BatchExecuteStatement
+          Resource: 
+            - ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+        - Effect: Allow
+          Action:
+            - execute-api:ManageConnections
+          Resource: 
+            - arn:aws:execute-api:${self:provider.region}:*:${cf:omnichannel-infrastructure-${self:provider.stage}.WebSocketApiGatewayId}/*/*
+
+functions:
+  connect:
+    handler: handler.connect
+    events:
+      - websocket:
+          route: $connect
+          routeResponseSelectionExpression: $default
+          
+  disconnect:
+    handler: handler.disconnect
+    events:
+      - websocket:
+          route: $disconnect
+          
+  default:
+    handler: handler.default
+    events:
+      - websocket:
+          route: $default
+
+plugins:
+  - serverless-webpack
+
+webpack:
+  webpackConfig: 'webpack.config.js'
+  includeModules: true

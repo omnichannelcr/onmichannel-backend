@@ -11,8 +11,9 @@ Webhook → Aurora PostgreSQL → SQS Queue → Message Processor → UI
 ## Services
 
 - **infrastructure**: Aurora PostgreSQL, SQS Queue, API Gateway
-- **webhook-service**: Receives webhooks, stores messages, queues for processing  
-- **message-processor**: Processes queued messages and routes to UI
+- **webhook-service**: Receives webhooks from platforms, stores messages, queues for processing  
+- **inbound-message-processor**: Processes queued inbound messages and routes to UI
+- **outbound-message-processor**: Handles sending messages to platforms via API
 
 ## Quick Start
 
@@ -72,10 +73,14 @@ See `env.example` for required environment variables including:
 │   │   ├── serverless.yml      # Webhook service config
 │   │   ├── webpack.config.js   # TypeScript build config
 │   │   └── handler.ts          # Webhook handler (TODO: implement)
-│   └── message-processor/       # Queue processor
-│       ├── serverless.yml      # Processor service config
+│   ├── inbound-message-processor/ # Inbound message processor
+│   │   ├── serverless.yml      # Inbound processor config
+│   │   ├── webpack.config.js   # TypeScript build config
+│   │   └── handler.ts          # Inbound processor (TODO: implement)
+│   └── outbound-message-processor/ # Outbound message processor
+│       ├── serverless.yml      # Outbound processor config
 │       ├── webpack.config.js   # TypeScript build config
-│       └── handler.ts          # Message processor (TODO: implement)
+│       └── handler.ts          # Outbound processor (TODO: implement)
 ├── serverless-compose.yml       # Service orchestration
 ├── tsconfig.json               # TypeScript configuration
 ├── package.json                # Root dependencies

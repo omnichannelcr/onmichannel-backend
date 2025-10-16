@@ -102,6 +102,15 @@ resources:
           Types:
             - REGIONAL
 
+    # WebSocket API Gateway for Real-time Communication
+    WebSocketApiGateway:
+      Type: AWS::ApiGatewayV2::Api
+      Properties:
+        Name: omnichannel-websocket-${self:provider.stage}
+        Description: WebSocket API for real-time messaging
+        ProtocolType: WEBSOCKET
+        RouteSelectionExpression: $request.body.action
+
     # CloudWatch Log Group for Infrastructure
     InfrastructureLogGroup:
       Type: AWS::Logs::LogGroup
@@ -155,3 +164,15 @@ resources:
       Value: !Ref WebhookApiGateway
       Export:
         Name: ${self:provider.stage}-WebhookApiGatewayId
+
+    WebSocketApiGatewayId:
+      Description: WebSocket API Gateway ID
+      Value: !Ref WebSocketApiGateway
+      Export:
+        Name: ${self:provider.stage}-WebSocketApiGatewayId
+
+    WebSocketApiGatewayEndpoint:
+      Description: WebSocket API Gateway endpoint
+      Value: !Sub "${WebSocketApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+      Export:
+        Name: ${self:provider.stage}-WebSocketApiGatewayEndpoint

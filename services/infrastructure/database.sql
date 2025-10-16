@@ -61,6 +61,26 @@ CREATE TABLE queue_logs (
 CREATE INDEX idx_queue_logs_message_id ON queue_logs(message_id);
 CREATE INDEX idx_queue_logs_processing_status ON queue_logs(processing_status);
 
+-- WebSocket connections table - track active WebSocket connections
+CREATE TABLE websocket_connections (
+    connection_id VARCHAR(255) PRIMARY KEY,
+    user_id UUID,
+    company_id UUID,
+    connected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    disconnected_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB
+);
+
+-- Create indexes for WebSocket connections
+CREATE INDEX idx_websocket_connections_user_id ON websocket_connections(user_id) 
+WHERE disconnected_at IS NULL;
+
+CREATE INDEX idx_websocket_connections_company_id ON websocket_connections(company_id)
+WHERE disconnected_at IS NULL;
+
+CREATE INDEX idx_websocket_connections_last_seen ON websocket_connections(last_seen);
+
 -- Update trigger for messages table
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

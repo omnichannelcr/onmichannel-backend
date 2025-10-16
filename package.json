@@ -7,14 +7,17 @@
     "deploy": "serverless compose deploy",
     "deploy:infra": "serverless compose deploy --service infrastructure",
     "deploy:webhook": "serverless compose deploy --service webhook-service",
-    "deploy:processor": "serverless compose deploy --service message-processor",
+    "deploy:inbound": "serverless compose deploy --service inbound-message-processor",
+    "deploy:outbound": "serverless compose deploy --service outbound-message-processor",
+    "deploy:websocket": "serverless compose deploy --service websocket-service",
     "remove": "serverless compose remove",
     "dev": "serverless compose run --service webhook-service offline",
     "build": "tsc"
   },
   "dependencies": {
     "@aws-sdk/client-rds-data": "^3.459.0",
-    "@aws-sdk/client-sqs": "^3.459.0"
+    "@aws-sdk/client-sqs": "^3.459.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.459.0"
   },
   "devDependencies": {
     "serverless": "^3.38.0",

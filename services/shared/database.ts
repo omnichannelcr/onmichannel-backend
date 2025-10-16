@@ -70,4 +70,79 @@ export class DatabaseClient {
     console.log('Logging queue processing:', { messageId, queueMessageId, status });
     return 'mock-log-id';
   }
+
+  // WebSocket connection methods
+  async storeWebSocketConnection(
+    connectionId: string,
+    userId: string,
+    companyId: string,
+    metadata?: any
+  ): Promise<void> {
+    const sql = `
+      INSERT INTO websocket_connections (connection_id, user_id, company_id, metadata)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (connection_id) DO UPDATE SET
+        user_id = EXCLUDED.user_id,
+        company_id = EXCLUDED.company_id,
+        metadata = EXCLUDED.metadata,
+        connected_at = NOW(),
+        last_seen = NOW(),
+        disconnected_at = NULL
+    `;
+    
+    await this.executeQuery(sql, [connectionId, userId, companyId, metadata ? JSON.stringify(metadata) : null]);
+  }
+
+  async disconnectWebSocketConnection(connectionId: string): Promise<void> {
+    const sql = `
+      UPDATE websocket_connections 
+      SET disconnected_at = NOW()
+      WHERE connection_id = $1
+    `;
+    
+    await this.executeQuery(sql, [connectionId]);
+  }
+
+  async updateWebSocketLastSeen(connectionId: string): Promise<void> {
+    const sql = `
+      UPDATE websocket_connections 
+      SET last_seen = NOW()
+      WHERE connection_id = $1 AND disconnected_at IS NULL
+    `;
+    
+    await this.executeQuery(sql, [connectionId]);
+  }
+
+  async getUserWebSocketConnections(userId: string): Promise<any[]> {
+    const sql = `
+      SELECT connection_id, connected_at, last_seen, metadata
+      FROM websocket_connections 
+      WHERE user_id = $1 AND disconnected_at IS NULL
+      ORDER BY last_seen DESC
+    `;
+    
+    return await this.executeQuery(sql, [userId]);
+  }
+
+  async getCompanyWebSocketConnections(companyId: string): Promise<any[]> {
+    const sql = `
+      SELECT connection_id, user_id, connected_at, last_seen, metadata
+      FROM websocket_connections 
+      WHERE company_id = $1 AND disconnected_at IS NULL
+      ORDER BY last_seen DESC
+    `;
+    
+    return await this.executeQuery(sql, [companyId]);
+  }
+
+  async getActiveWebSocketConnections(): Promise<any[]> {
+    const sql = `
+      SELECT connection_id, user_id, company_id, connected_at, last_seen
+      FROM websocket_connections 
+      WHERE disconnected_at IS NULL
+      ORDER BY last_seen DESC
+    `;
+    
+    return await this.executeQuery(sql);
+  }
 }

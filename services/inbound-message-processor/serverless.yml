@@ -1,4 +1,4 @@
-service: omnichannel-message-processor
+service: omnichannel-inbound-message-processor
 
 provider:
   name: aws
@@ -9,6 +9,9 @@ provider:
   environment:
     STAGE: ${self:provider.stage}
     AURORA_CLUSTER_ARN: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+    AURORA_SECRET_ARN: ${env:AURORA_SECRET_ARN}
+    AURORA_DATABASE: omnichannel
+    WEBSOCKET_API_ID: ${cf:omnichannel-infrastructure-${self:provider.stage}.WebSocketApiGatewayId}
   
   iam:
     role:
@@ -16,12 +19,18 @@ provider:
         - Effect: Allow
           Action:
             - rds-data:ExecuteStatement
+            - rds-data:BatchExecuteStatement
           Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
         - Effect: Allow
           Action:
             - sqs:ReceiveMessage
             - sqs:DeleteMessage
           Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueArn}
+        - Effect: Allow
+          Action:
+            - execute-api:ManageConnections
+          Resource: 
+            - arn:aws:execute-api:${self:provider.region}:*:${cf:omnichannel-infrastructure-${self:provider.stage}.WebSocketApiGatewayId}/*/*
 
 functions:
   messageProcessor:

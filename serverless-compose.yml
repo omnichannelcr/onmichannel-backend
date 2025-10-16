@@ -8,8 +8,18 @@ services:
     dependsOn:
       - infrastructure
   
-  message-processor:
-    path: services/message-processor
+  inbound-message-processor:
+    path: services/inbound-message-processor
+    dependsOn:
+      - infrastructure
+  
+  outbound-message-processor:
+    path: services/outbound-message-processor
+    dependsOn:
+      - infrastructure
+
+  websocket-service:
+    path: services/websocket-service
     dependsOn:
       - infrastructure
 
