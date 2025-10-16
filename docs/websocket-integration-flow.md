@@ -20,21 +20,21 @@ WhatsApp/Facebook/Instagram/Telegram
 - ✅ Multi-device synchronization
 - ✅ Agent notifications
 
-### **Outbound Message Flow (NO WebSocket Notifications)**
+### **Outbound Message Flow (WITH WebSocket Notifications)**
 
 ```
-Frontend/UI
-    ↓ (HTTP POST)
-Outbound Processor
-    ↓ (HTTP response)
-Frontend/UI (updates immediately)
+👨‍💼 Agent A sends message → 📤 Outbound Processor → ✅ HTTP Response → 📱 Agent A's UI updates
+                                                      ↓
+                                              🔔 WebSocket Notification
+                                                      ↓
+                                              📱 Agent B's UI updates (real-time)
 ```
 
-**Why NO WebSocket notifications for outbound?**
-- ✅ User already knows they sent the message
-- ✅ HTTP response is sufficient
-- ✅ Simpler architecture
-- ✅ Fewer failure points
+**Why WebSocket notifications for outbound?**
+- ✅ Multi-agent collaboration - other agents see messages in real-time
+- ✅ Multi-device sync - same user on different devices
+- ✅ Team coordination - multiple agents working on same conversation
+- ✅ Real-time conversation updates
 
 ## **Complete Message Flow**
 
@@ -51,13 +51,15 @@ Connected agents see new message in real-time
 
 ### 2. **Outbound Message (Agent → Customer)**
 ```
-Agent sends message via UI
+Agent A sends message via UI
     ↓
 Outbound Processor sends to platform → stores in DB
     ↓
-HTTP response confirms success
+HTTP response confirms success → Agent A's UI updates immediately
     ↓
-UI updates immediately (no WebSocket needed)
+WebSocket notification sent to other agents
+    ↓
+Agent B's UI updates in real-time
 ```
 
 ## **WebSocket Notification Types**
@@ -68,25 +70,27 @@ UI updates immediately (no WebSocket needed)
 - `typing_indicator` - Customer is typing
 
 ### **Outbound Messages:**
-- ❌ No WebSocket notifications needed
-- ✅ HTTP response handles success/failure
-- ✅ Frontend updates UI immediately
+- `outbound_message` - Message sent by another agent (excludes sender)
+- ✅ HTTP response handles success/failure for sender
+- ✅ WebSocket notification updates other connected agents
 
 ## **Benefits of This Approach**
 
-1. **Simpler Architecture**
-   - WebSocket only for inbound notifications
-   - HTTP for outbound operations
+1. **Complete Real-time Experience**
+   - WebSocket notifications for both inbound and outbound messages
+   - Multi-agent collaboration and coordination
 
 2. **Better User Experience**
    - Real-time notifications for new messages
-   - Immediate feedback for sent messages
+   - Immediate feedback for sent messages (HTTP)
+   - Real-time updates for other agents (WebSocket)
 
-3. **Reduced Complexity**
-   - Fewer moving parts
-   - Less error handling
-   - Clearer separation of concerns
+3. **Multi-user Support**
+   - Multiple agents can work on same conversation
+   - Real-time synchronization across devices
+   - Team collaboration features
 
-4. **Performance**
-   - No unnecessary WebSocket traffic for outbound
-   - Faster outbound message sending
+4. **Smart Notification Logic**
+   - Sender gets immediate HTTP response
+   - Other agents get WebSocket notifications
+   - Excludes sender from WebSocket notifications to avoid duplication

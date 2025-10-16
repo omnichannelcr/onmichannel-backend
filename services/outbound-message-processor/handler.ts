@@ -4,6 +4,7 @@ import { successResponse, errorResponse } from '@/shared/utils';
 import { DatabaseClient } from '@/shared/database';
 import { QueueClient } from '@/shared/queue';
 import { PlatformClients, OutboundMessage } from '@/shared/platform-clients';
+import { WebSocketNotifier } from '@/shared/websocket-notifier';
 
 export const outboundMessageProcessor = async (
   event: APIGatewayProxyEvent
@@ -43,6 +44,7 @@ export const outboundMessageProcessor = async (
     const dbClient = new DatabaseClient();
     const queueClient = new QueueClient();
     const platformClients = new PlatformClients();
+    const webSocketNotifier = new WebSocketNotifier();
 
     // TODO: 
     // 1. Store outbound message in database (direction: 'outbound')
@@ -68,6 +70,23 @@ export const outboundMessageProcessor = async (
       content_json: content,
       metadata
     });
+
+    // Send WebSocket notification to other connected users (not the sender)
+    try {
+      await webSocketNotifier.notifyOutboundMessage({
+        id: messageId,
+        platform: platform as string,
+        direction: 'outbound',
+        content,
+        conversationId,
+        senderUserId: requestBody.userId,
+        companyId: requestBody.companyId,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Failed to send WebSocket notification for outbound message:', error);
+      // Don't fail the entire operation if notification fails
+    }
 
     return successResponse({
       message: 'Message sent successfully',

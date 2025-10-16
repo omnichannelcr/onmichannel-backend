@@ -12,6 +12,7 @@ provider:
     AURORA_SECRET_ARN: ${env:AURORA_SECRET_ARN}
     AURORA_DATABASE: omnichannel
     MESSAGE_QUEUE_URL: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueUrl}
+    WEBSOCKET_API_ID: ${cf:omnichannel-infrastructure-${self:provider.stage}.WebSocketApiGatewayId}
     
     # Platform API Tokens
     WHATSAPP_ACCESS_TOKEN: ${env:WHATSAPP_ACCESS_TOKEN}

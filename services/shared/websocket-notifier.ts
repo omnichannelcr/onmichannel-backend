@@ -132,4 +132,36 @@ export class WebSocketNotifier {
       await this.notifyCompany(companyId, notification);
     }
   }
+
+  async notifyOutboundMessage(messageData: any): Promise<void> {
+    const notification: WebSocketNotification = {
+      type: 'outbound_message',
+      data: {
+        id: messageData.id,
+        platform: messageData.platform,
+        direction: messageData.direction,
+        content: messageData.content,
+        conversationId: messageData.conversationId,
+        senderUserId: messageData.senderUserId
+      },
+      timestamp: messageData.timestamp,
+      messageId: messageData.id,
+      conversationId: messageData.conversationId
+    };
+
+    // Notify all users in the company except the sender
+    if (messageData.companyId) {
+      const connections = await this.dbClient.getCompanyWebSocketConnections(messageData.companyId);
+      
+      // Filter out the sender's connections
+      const otherConnections = connections.filter(
+        conn => conn.user_id !== messageData.senderUserId
+      );
+      
+      if (otherConnections.length > 0) {
+        const connectionIds = otherConnections.map(conn => conn.connection_id);
+        await this.notifySpecificConnections(connectionIds, notification);
+      }
+    }
+  }
 }
