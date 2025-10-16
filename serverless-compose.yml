@@ -1,0 +1,18 @@
+services:
+  infrastructure:
+    path: services/infrastructure
+    dependsOn: []
+  
+  webhook-service:
+    path: services/webhook-service
+    dependsOn:
+      - infrastructure
+  
+  message-processor:
+    path: services/message-processor
+    dependsOn:
+      - infrastructure
+
+config:
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}

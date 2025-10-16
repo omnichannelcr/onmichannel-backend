@@ -1,0 +1,40 @@
+service: omnichannel-message-processor
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  
+  environment:
+    STAGE: ${self:provider.stage}
+    AURORA_CLUSTER_ARN: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - rds-data:ExecuteStatement
+          Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+        - Effect: Allow
+          Action:
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+          Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueArn}
+
+functions:
+  messageProcessor:
+    handler: handler.messageProcessor
+    timeout: 60
+    events:
+      - sqs:
+          arn: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueArn}
+          batchSize: 10
+
+plugins:
+  - serverless-webpack
+
+webpack:
+  webpackConfig: 'webpack.config.js'
+  includeModules: true

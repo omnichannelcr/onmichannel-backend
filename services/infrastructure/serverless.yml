@@ -1,0 +1,157 @@
+service: omnichannel-infrastructure
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  
+  # No functions needed - just resources
+  
+resources:
+  Resources:
+    # Aurora Serverless v2 Cluster
+    AuroraCluster:
+      Type: AWS::RDS::DBCluster
+      Properties:
+        Engine: aurora-postgresql
+        EngineVersion: '15.4'
+        DatabaseName: omnichannel
+        MasterUsername: ${env:DB_MASTER_USERNAME, 'admin'}
+        MasterUserPassword: ${env:DB_MASTER_PASSWORD}
+        DBClusterIdentifier: omnichannel-${self:provider.stage}
+        VpcSecurityGroupIds:
+          - Ref: AuroraSecurityGroup
+        DBSubnetGroupName: !Ref AuroraSubnetGroup
+        EnableHttpEndpoint: true
+        ServerlessV2ScalingConfiguration:
+          MinCapacity: 0.5
+          MaxCapacity: 16
+        BackupRetentionPeriod: 7
+        PreferredBackupWindow: '03:00-04:00'
+        PreferredMaintenanceWindow: 'sun:04:00-sun:05:00'
+        DeletionProtection: false
+        StorageEncrypted: true
+
+    # Aurora Serverless v2 Instance
+    AuroraInstance:
+      Type: AWS::RDS::DBInstance
+      Properties:
+        DBClusterIdentifier: !Ref AuroraCluster
+        DBInstanceClass: db.serverless
+        Engine: aurora-postgresql
+        DBInstanceIdentifier: omnichannel-${self:provider.stage}-instance
+
+    # Security Group for Aurora
+    AuroraSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for Aurora cluster
+        VpcId: ${env:VPC_ID}
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 5432
+            ToPort: 5432
+            SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+    # Security Group for Lambdas
+    LambdaSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for Lambda functions
+        VpcId: ${env:VPC_ID}
+        SecurityGroupEgress:
+          - IpProtocol: -1
+            CidrIp: 0.0.0.0/0
+
+    # Subnet Group for Aurora
+    AuroraSubnetGroup:
+      Type: AWS::RDS::DBSubnetGroup
+      Properties:
+        DBSubnetGroupDescription: Subnet group for Aurora cluster
+        SubnetIds:
+          - ${env:SUBNET_1_ID}
+          - ${env:SUBNET_2_ID}
+
+    # SQS Queue for Message Processing
+    MessageQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: omnichannel-messages-${self:provider.stage}
+        VisibilityTimeoutSeconds: 300
+        MessageRetentionPeriod: 1209600 # 14 days
+        ReceiveMessageWaitTimeSeconds: 20 # Long polling
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+          maxReceiveCount: 3
+
+    # Dead Letter Queue
+    DeadLetterQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: omnichannel-messages-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    # API Gateway for Webhooks
+    WebhookApiGateway:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Name: omnichannel-webhooks-${self:provider.stage}
+        Description: API Gateway for receiving webhooks from messaging platforms
+        EndpointConfiguration:
+          Types:
+            - REGIONAL
+
+    # CloudWatch Log Group for Infrastructure
+    InfrastructureLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/omnichannel/infrastructure-${self:provider.stage}
+        RetentionInDays: 14
+
+  Outputs:
+    # Aurora Database outputs
+    AuroraClusterEndpoint:
+      Description: Aurora cluster endpoint
+      Value: !GetAtt AuroraCluster.Endpoint.Address
+      Export:
+        Name: ${self:provider.stage}-AuroraClusterEndpoint
+    
+    AuroraClusterPort:
+      Description: Aurora cluster port
+      Value: !GetAtt AuroraCluster.Endpoint.Port
+      Export:
+        Name: ${self:provider.stage}-AuroraClusterPort
+
+    AuroraClusterArn:
+      Description: Aurora cluster ARN
+      Value: !GetAtt AuroraCluster.Arn
+      Export:
+        Name: ${self:provider.stage}-AuroraClusterArn
+
+    # Queue outputs
+    MessageQueueUrl:
+      Description: SQS Queue URL for message processing
+      Value: !Ref MessageQueue
+      Export:
+        Name: ${self:provider.stage}-MessageQueueUrl
+
+    MessageQueueArn:
+      Description: SQS Queue ARN for message processing
+      Value: !GetAtt MessageQueue.Arn
+      Export:
+        Name: ${self:provider.stage}-MessageQueueArn
+
+    DeadLetterQueueUrl:
+      Description: Dead Letter Queue URL
+      Value: !Ref DeadLetterQueue
+      Export:
+        Name: ${self:provider.stage}-DeadLetterQueueUrl
+
+
+    # API Gateway outputs
+    WebhookApiGatewayId:
+      Description: API Gateway ID for webhooks
+      Value: !Ref WebhookApiGateway
+      Export:
+        Name: ${self:provider.stage}-WebhookApiGatewayId

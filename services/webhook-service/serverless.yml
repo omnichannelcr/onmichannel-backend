@@ -1,0 +1,45 @@
+service: omnichannel-webhook-service
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  
+  environment:
+    STAGE: ${self:provider.stage}
+    AURORA_CLUSTER_ARN: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+    MESSAGE_QUEUE_URL: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueUrl}
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - rds-data:ExecuteStatement
+          Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.AuroraClusterArn}
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+          Resource: ${cf:omnichannel-infrastructure-${self:provider.stage}.MessageQueueArn}
+
+functions:
+  webhookHandler:
+    handler: handler.webhookHandler
+    timeout: 30
+    events:
+      - http:
+          path: /webhook/{platform}
+          method: post
+          cors: true
+      - http:
+          path: /webhook/{platform}
+          method: get
+          cors: true
+
+plugins:
+  - serverless-webpack
+
+webpack:
+  webpackConfig: 'webpack.config.js'
+  includeModules: true

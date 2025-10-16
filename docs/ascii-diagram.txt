@@ -1,0 +1,82 @@
+OMNICHANNEL MESSAGING BACKEND - SERVICE ARCHITECTURE
+=====================================================
+
+External Platforms
+┌─────────────────────────────────────────────────────────────────┐
+│  WhatsApp Business    Facebook Messenger    Instagram Graph     │
+│  API                 API                   API                  │
+│                                                                 │
+│  Telegram Bot API                                              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    WEBHOOK SERVICE                              │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  Lambda Function: webhookHandler                            │ │
+│  │  • Receive webhooks from all platforms                      │ │
+│  │  • Validate webhook signatures                              │ │
+│  │  • Parse platform-specific message formats                  │ │
+│  │  • Store messages in Aurora PostgreSQL                      │ │
+│  │  • Queue messages for processing                            │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+┌─────────────────────────┐  ┌─────────────────────────┐
+│    AURORA POSTGRESQL    │  │       SQS QUEUE         │
+│    Serverless v2        │  │                         │
+│                         │  │  ┌─────────────────────┐ │
+│  ┌─────────────────────┐ │  │  │ Message Processing │ │
+│  │ messages table      │ │  │  │ Queue               │ │
+│  │ webhook_logs table  │ │  │  └─────────────────────┘ │
+│  │ queue_logs table    │ │  │                         │
+│  └─────────────────────┘ │  │  ┌─────────────────────┐ │
+└─────────────────────────┘  │  │ Dead Letter Queue    │ │
+                              │  └─────────────────────┘ │
+                              └─────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  MESSAGE PROCESSOR SERVICE                      │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  Lambda Function: messageProcessor                          │ │
+│  │  • Process queued messages                                  │ │
+│  │  • Normalize message formats                                │ │
+│  │  • Route messages to UI endpoints                           │ │
+│  │  • Update processing status                                 │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    FRONTEND APPLICATIONS                        │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐ │
+│  │ Agent Dashboard │ │ User Interface  │ │ Real-time           │ │
+│  │                 │ │                 │ │ Notifications       │ │
+│  └─────────────────┘ └─────────────────┘ └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+
+DATA FLOW:
+==========
+1. Platform → Webhook Service → Database Storage + Queue
+2. Queue → Message Processor → UI Routing + Status Update
+3. Failed Messages → Dead Letter Queue → Error Handling
+
+DEPLOYMENT ORDER:
+================
+1. Infrastructure Service (Aurora, SQS, API Gateway)
+2. Webhook Service (receives webhooks)
+3. Message Processor Service (processes queue)
+4. Configure platform webhooks to point to API Gateway
+
+TECHNOLOGY STACK:
+================
+• Runtime: Node.js 18.x with TypeScript
+• Framework: Serverless Framework with Compose
+• Database: Aurora PostgreSQL Serverless v2
+• Queue: Amazon SQS with Dead Letter Queue
+• Compute: AWS Lambda Functions
+• API: Amazon API Gateway
+• Build: Webpack with TypeScript loader
