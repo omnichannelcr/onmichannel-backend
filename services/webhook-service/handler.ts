@@ -44,16 +44,67 @@ async function handleWebhookVerification(
 ): Promise<APIGatewayProxyResult> {
   const queryParams = event.queryStringParameters || {};
   
-  // Simple verification for now
+  switch (platform) {
+    case Platform.WHATSAPP:
+      return handleWhatsAppVerification(queryParams);
+    case Platform.FACEBOOK:
+      return handleFacebookVerification(queryParams);
+    case Platform.INSTAGRAM:
+      return handleInstagramVerification(queryParams);
+    case Platform.TELEGRAM:
+      return handleTelegramVerification(queryParams);
+    default:
+      return errorResponse(`Verification not implemented for ${platform}`, 501);
+  }
+}
+
+function handleWhatsAppVerification(queryParams: any): APIGatewayProxyResult {
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
   const hubMode = queryParams['hub.mode'];
   const hubChallenge = queryParams['hub.challenge'];
-  
-  if (hubMode === 'subscribe' && hubChallenge) {
-    console.log(`${platform} webhook verified`);
+  const hubVerifyToken = queryParams['hub.verify_token'];
+
+  if (hubMode === 'subscribe' && hubVerifyToken === verifyToken) {
+    console.log('WhatsApp webhook verified');
     return successResponse(hubChallenge);
   }
   
-  return errorResponse('Verification failed', 401);
+  return errorResponse('WhatsApp verification failed', 401);
+}
+
+function handleFacebookVerification(queryParams: any): APIGatewayProxyResult {
+  const verifyToken = process.env.FACEBOOK_VERIFY_TOKEN;
+  const hubMode = queryParams['hub.mode'];
+  const hubChallenge = queryParams['hub.challenge'];
+  const hubVerifyToken = queryParams['hub.verify_token'];
+
+  if (hubMode === 'subscribe' && hubVerifyToken === verifyToken) {
+    console.log('Facebook webhook verified');
+    return successResponse(hubChallenge);
+  }
+  
+  return errorResponse('Facebook verification failed', 401);
+}
+
+function handleInstagramVerification(queryParams: any): APIGatewayProxyResult {
+  const verifyToken = process.env.INSTAGRAM_VERIFY_TOKEN;
+  const hubMode = queryParams['hub.mode'];
+  const hubChallenge = queryParams['hub.challenge'];
+  const hubVerifyToken = queryParams['hub.verify_token'];
+
+  if (hubMode === 'subscribe' && hubVerifyToken === verifyToken) {
+    console.log('Instagram webhook verified');
+    return successResponse(hubChallenge);
+  }
+  
+  return errorResponse('Instagram verification failed', 401);
+}
+
+function handleTelegramVerification(queryParams: any): APIGatewayProxyResult {
+  // Telegram doesn't require webhook verification
+  // Just return OK for any GET request
+  console.log('Telegram webhook verification (no verification required)');
+  return successResponse('OK');
 }
 
 async function handleWebhookEvent(
@@ -61,22 +112,58 @@ async function handleWebhookEvent(
   platform: Platform
 ): Promise<APIGatewayProxyResult> {
   const payload = JSON.parse(event.body || '{}');
+  const signature = event.headers['X-Hub-Signature-256'] || 
+                   event.headers['X-Hub-Signature'] ||
+                   event.headers['X-Telegram-Bot-Api-Secret-Token'];
   
   console.log(`Received ${platform} webhook:`, JSON.stringify(payload, null, 2));
+  
+  // Validate webhook signature
+  if (!validateWebhookSignature(platform, payload, signature, event.headers)) {
+    console.warn(`${platform} webhook signature validation failed`);
+    return errorResponse('Invalid webhook signature', 401);
+  }
   
   // Initialize clients
   const dbClient = new DatabaseClient();
   const queueClient = new QueueClient();
   
   // TODO: 
-  // 1. Validate webhook signature
-  // 2. Parse platform-specific message format
-  // 3. Store message in Aurora PostgreSQL using dbClient.insertMessage()
-  // 4. Queue message for processing using queueClient.sendMessageForProcessing()
+  // 1. Parse platform-specific message format
+  // 2. Store message in Aurora PostgreSQL using dbClient.insertMessage()
+  // 3. Queue message for processing using queueClient.sendMessageForProcessing()
   
   return successResponse({
     message: 'Webhook received successfully',
     platform,
     processed: false // Will be true once implemented
   });
+}
+
+function validateWebhookSignature(
+  platform: Platform, 
+  payload: any, 
+  signature: string | undefined,
+  headers: any
+): boolean {
+  // TODO: Implement platform-specific signature validation
+  // For now, return true to allow development
+  // In production, implement proper signature validation for each platform
+  
+  switch (platform) {
+    case Platform.WHATSAPP:
+      // TODO: Validate WhatsApp signature using X-Hub-Signature-256
+      return true;
+    case Platform.FACEBOOK:
+      // TODO: Validate Facebook signature using X-Hub-Signature-256
+      return true;
+    case Platform.INSTAGRAM:
+      // TODO: Validate Instagram signature using X-Hub-Signature-256
+      return true;
+    case Platform.TELEGRAM:
+      // TODO: Validate Telegram signature using X-Telegram-Bot-Api-Secret-Token
+      return true;
+    default:
+      return false;
+  }
 }
